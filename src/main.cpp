@@ -25,6 +25,7 @@ SerialPassthrough sketch
 #include "ELMduino.h"
 #include "Arduino.h"
 #include "ui.hpp"
+#include "sd.hpp"
 
 
 #define SerialELM Serial2
@@ -95,11 +96,9 @@ void ltft2Task() {
 void dtcTask() {
     elmduino.currentDTCCodes(false);
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        Serial.println("found codes: ");
         ui_updateWarningLabel("");
         for (const auto code: elmduino.DTC_Response.codes) {
             ui_updateWarningLabel(code, true);
-            Serial.println(code);
         }
         ui_updateWarningLabel("DTCS: ", true);
     }
@@ -110,7 +109,7 @@ static OBDTask tasks[7] = {
     OBDTask{"rpm", rpmTask, 50, 0},
     OBDTask{"stft1", stft1Task, 50, 0},
     OBDTask{"stft2", stft2Task, 50, 0},
-    OBDTask{"ltft2", ltft1Task, 50, 0},
+    OBDTask{"ltft1", ltft1Task, 50, 0},
     OBDTask{"ltft2", ltft2Task, 50, 0},
     OBDTask{"dtc", dtcTask, 5000, 0},
 };
@@ -168,26 +167,6 @@ void maybeSubmitFuelTrimChartChanges() {
     }
 }
 
-
-// OBD generic stuff //
-void connectOBD() {
-    Serial.println("Connecting");
-    if (!elmduino.begin(SerialELM, true)) {
-        Serial.println("Couldn't connect to OBD scanner");
-        return;
-    }
-    Serial.println("Connected to OBD scanner");
-}
-
-// End OBD generic stuff //
-
-void setup() {
-    delay(500);
-    Serial.begin(115200);
-    SerialELM.begin(38400, SERIAL_8N1, 45, 39);
-    ui_setup();
-}
-
 void executeOrPickNextTask() {
     unsigned long currentMillis = millis();
     if (currentTask != nullptr) {
@@ -209,14 +188,39 @@ void executeOrPickNextTask() {
         Serial.println(String("Starting task ") + currentTask->name);
         ui_updateWarningLabel((String("TASK: ") + currentTask->name).c_str());
     }
-
-
 }
+
+
+void connectOBD() {
+    Serial.println("Connecting");
+    if (!elmduino.begin(SerialELM, true)) {
+        Serial.println("Couldn't connect to OBD scanner");
+        return;
+    }
+    Serial.println("Connected to OBD scanner");
+}
+
+void setup() {
+    delay(500);
+    Serial.begin(115200);
+    SerialELM.begin(38400, SERIAL_8N1, 45, 39);
+    ui_setup();
+    sd_setup();
+}
+
 
 void loop() {
     ui_loop();
     if (!elmduino.connected) {
         ui_updateWarningLabel("Connecting...");
+        Serial.print("MOSI: ");
+        Serial.println(MOSI);
+        Serial.print("MISO: ");
+        Serial.println(MISO);
+        Serial.print("SCK: ");
+        Serial.println(SCK);
+        Serial.print("SS: ");
+        Serial.println(SS);
         ui_loop();
         connectOBD();
         ui_updateWarningLabel("");
@@ -226,6 +230,4 @@ void loop() {
 
     executeOrPickNextTask();
     maybeSubmitFuelTrimChartChanges();
-
-    delay(10);
 }
