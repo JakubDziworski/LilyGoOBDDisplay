@@ -209,9 +209,11 @@ void setup() {
 }
 
 
+bool connected = false;
+
 void loop() {
     ui_loop();
-    if (!elmduino.connected) {
+    if (!connected) {
         ui_updateWarningLabel("Connecting...");
         Serial.print("MOSI: ");
         Serial.println(MOSI);
@@ -225,6 +227,7 @@ void loop() {
         connectOBD();
         ui_updateWarningLabel("");
         delay(200);
+        connected = true;
         return;
     }
 
