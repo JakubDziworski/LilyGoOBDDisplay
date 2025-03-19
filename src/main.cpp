@@ -24,6 +24,7 @@ SerialPassthrough sketch
 
 #include "ELMduino.h"
 #include "Arduino.h"
+#include "can.hpp"
 #include "ui.hpp"
 #include "sd.hpp"
 
@@ -205,7 +206,8 @@ void setup() {
     Serial.begin(115200);
     SerialELM.begin(38400, SERIAL_8N1, 45, 39);
     ui_setup();
-    sd_setup();
+    // sd_setup();
+    can_setup();
 }
 
 
@@ -213,24 +215,24 @@ bool connected = false;
 
 void loop() {
     ui_loop();
-    if (!connected) {
-        ui_updateWarningLabel("Connecting...");
-        Serial.print("MOSI: ");
-        Serial.println(MOSI);
-        Serial.print("MISO: ");
-        Serial.println(MISO);
-        Serial.print("SCK: ");
-        Serial.println(SCK);
-        Serial.print("SS: ");
-        Serial.println(SS);
-        ui_loop();
-        connectOBD();
-        ui_updateWarningLabel("");
-        delay(200);
-        connected = true;
-        return;
-    }
-
-    executeOrPickNextTask();
-    maybeSubmitFuelTrimChartChanges();
+    // if (!connected) {
+    //     ui_updateWarningLabel("Connecting...");
+    //     Serial.print("MOSI: ");
+    //     Serial.println(MOSI);
+    //     Serial.print("MISO: ");
+    //     Serial.println(MISO);
+    //     Serial.print("SCK: ");
+    //     Serial.println(SCK);
+    //     Serial.print("SS: ");
+    //     Serial.println(SS);
+    //     ui_loop();
+    //     connectOBD();
+    //     ui_updateWarningLabel("");
+    //     delay(200);
+    //     connected = true;
+    //     return;
+    // }
+    // executeOrPickNextTask();
+    // maybeSubmitFuelTrimChartChanges();
+    can_loop();
 }
