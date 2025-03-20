@@ -35,129 +35,32 @@ ELM327 elmduino;
 // Pierwszy CPU - OBD (non-blocking) i display
 struct OBDTask {
     const char *name;
-
     void (*function)();
-
     unsigned long interval;
     unsigned long lastRun;
 };
 
-OBDTask *currentTask = nullptr;
 unsigned long lastFuelTrimChartUpdate = 0;
 float lastStft1 = 0;
 float lastStft2 = 0;
 float lastLtft1 = 0;
 float lastLtft2 = 0;
 
-void kphTask() {
-    auto kph = elmduino.kph();
-    if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        Serial.println("kph" + kph);
-        ui_setSpeedValue(kph);
-    }
-}
-
-void rpmTask() {
-    auto rpm = elmduino.rpm();
-    if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        Serial.print("rpm: ");
-        Serial.println(rpm);
-        ui_updateFuelTrimChart(rpm / 100, -10);
-    }
-}
-
-void stft1Task() {
-    lastStft1 = elmduino.shortTermFuelTrimBank_1();
-    if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        ui_updateStft1Label(lastStft1);
-    }
-}
-
-void stft2Task() {
-    lastStft2 = elmduino.shortTermFuelTrimBank_2();
-    if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        ui_updateStft2Label(lastStft2);
-    }
-}
-
-void ltft1Task() {
-    lastLtft1 = elmduino.longTermFuelTrimBank_1();
-    if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        ui_updateLtft1Label(lastLtft1);
-    }
-}
-
-void ltft2Task() {
-    lastLtft2 = elmduino.longTermFuelTrimBank_2();
-    if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        ui_updateLtft2Label(lastLtft2);
-    }
-}
-
-void dtcTask() {
-    elmduino.currentDTCCodes(false);
-    if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        ui_updateWarningLabel("");
-        for (const auto code: elmduino.DTC_Response.codes) {
-            ui_updateWarningLabel(code, true);
-        }
-        ui_updateWarningLabel("DTCS: ", true);
-    }
-}
-
 static OBDTask tasks[7] = {
-    OBDTask{"kph", kphTask, 50, 0},
-    OBDTask{"rpm", rpmTask, 50, 0},
-    OBDTask{"stft1", stft1Task, 50, 0},
-    OBDTask{"stft2", stft2Task, 50, 0},
-    OBDTask{"ltft1", ltft1Task, 50, 0},
-    OBDTask{"ltft2", ltft2Task, 50, 0},
-    OBDTask{"dtc", dtcTask, 5000, 0},
+    OBDTask{"kph", requestKmh, 50, 0},
+    OBDTask{"rpm", requestRPM, 50, 0},
+    OBDTask{"stft1", requestSTFT1, 50, 0},
+    OBDTask{"stft2", requestSTFT2, 50, 0},
+    OBDTask{"ltft1", requestLTFT1, 50, 0},
+    OBDTask{"ltft2", requestLTFT2, 50, 0},
+    OBDTask{"dtc", requestDTC, 5000, 0},
 };
-
-void finalizeTaskIfDone() {
-    if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        currentTask->lastRun = millis();
-        currentTask = nullptr;
-    } else if (elmduino.nb_rx_state != ELM_GETTING_MSG) {
-        const auto nb_rx_state = elmduino.nb_rx_state;
-        String error_message = "";
-        if (nb_rx_state == ELM_SUCCESS)
-            error_message = "ELM_SUCCESS";
-        else if (nb_rx_state == ELM_NO_RESPONSE)
-            error_message = "ERROR: ELM_NO_RESPONSE";
-        else if (nb_rx_state == ELM_BUFFER_OVERFLOW)
-            error_message = "ERROR: ELM_BUFFER_OVERFLOW";
-        else if (nb_rx_state == ELM_UNABLE_TO_CONNECT)
-            error_message = "ERROR: ELM_UNABLE_TO_CONNECT";
-        else if (nb_rx_state == ELM_NO_DATA)
-            error_message = "ERROR: ELM_NO_DATA";
-        else if (nb_rx_state == ELM_STOPPED)
-            error_message = "ERROR: ELM_STOPPED";
-        else if (nb_rx_state == ELM_TIMEOUT)
-            error_message = "ERROR: ELM_TIMEOUT";
-        else if (nb_rx_state == ELM_BUFFER_OVERFLOW)
-            error_message = "ERROR: BUFFER OVERFLOW";
-        else if (nb_rx_state == ELM_GENERAL_ERROR)
-            error_message = "ERROR: ELM_GENERAL_ERROR";
-        else
-            error_message = "No error detected";
-
-        error_message = String("Task '") + currentTask->name + "' failed  - " + error_message;
-        ui_updateWarningLabel(error_message.c_str());
-        ui_loop();
-        elmduino.printError();
-        currentTask->lastRun = millis();
-        currentTask = nullptr;
-        delay(2000);
-    }
-}
 
 void maybeSubmitFuelTrimChartChanges() {
     boolean submitFuelTrimChartUpdate = true;
     for (const auto &task: tasks) {
         const auto isFuelTrimTask = task.name == "stft1" || task.name == "stft2" || task.name == "ltft1" || task.name == "ltft2";
-        if (isFuelTrimTask &&  task.lastRun < lastFuelTrimChartUpdate) {
+        if (isFuelTrimTask && task.lastRun < lastFuelTrimChartUpdate) {
             submitFuelTrimChartUpdate = false; // We haven't received updates from all tasks yet
             break;
         }
@@ -168,37 +71,14 @@ void maybeSubmitFuelTrimChartChanges() {
     }
 }
 
-void executeOrPickNextTask() {
+void executeTasks() {
     unsigned long currentMillis = millis();
-    if (currentTask != nullptr) {
-        currentTask->function();
-        finalizeTaskIfDone();
-    } else {
-        // pick next task
-        unsigned long maxOverdue = 0;
-        for (auto &task: tasks) {
-            unsigned long expectedTime = task.lastRun + task.interval;
-            if (currentMillis >= expectedTime) {
-                unsigned long overdue = currentMillis - expectedTime;
-                if (overdue > maxOverdue) {
-                    maxOverdue = overdue;
-                    currentTask = &task;
-                }
-            }
+    for (auto &task: tasks) {
+        if (currentMillis >= (task.lastRun + task.interval)) {
+            task.lastRun = currentMillis;
+            task.function();
         }
-        Serial.println(String("Starting task ") + currentTask->name);
-        ui_updateWarningLabel((String("TASK: ") + currentTask->name).c_str());
     }
-}
-
-
-void connectOBD() {
-    Serial.println("Connecting");
-    if (!elmduino.begin(SerialELM, true)) {
-        Serial.println("Couldn't connect to OBD scanner");
-        return;
-    }
-    Serial.println("Connected to OBD scanner");
 }
 
 void setup() {
@@ -210,29 +90,33 @@ void setup() {
     can_setup();
 }
 
-
-bool connected = false;
-
 void loop() {
     ui_loop();
-    // if (!connected) {
-    //     ui_updateWarningLabel("Connecting...");
-    //     Serial.print("MOSI: ");
-    //     Serial.println(MOSI);
-    //     Serial.print("MISO: ");
-    //     Serial.println(MISO);
-    //     Serial.print("SCK: ");
-    //     Serial.println(SCK);
-    //     Serial.print("SS: ");
-    //     Serial.println(SS);
-    //     ui_loop();
-    //     connectOBD();
-    //     ui_updateWarningLabel("");
-    //     delay(200);
-    //     connected = true;
-    //     return;
-    // }
-    // executeOrPickNextTask();
-    // maybeSubmitFuelTrimChartChanges();
     can_loop();
+    executeTasks();
+    maybeSubmitFuelTrimChartChanges();
+}
+
+void onKphUpdated(int kph) {
+    ui_setSpeedValue(kph);
+}
+
+void onStft1Updated(float trim) {
+    lastStft1 = trim;
+    ui_updateStft1Label(trim);
+}
+
+void onStft2Updated(float trim) {
+    lastStft2 = trim;
+    ui_updateStft2Label(trim);
+}
+
+void onLtft1Updated(float trim) {
+    lastLtft1 = trim;
+    ui_updateLtft1Label(trim);
+}
+
+void onLtft2Updated(float trim) {
+    lastLtft2 = trim;
+    ui_updateLtft2Label(trim);
 }
