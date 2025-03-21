@@ -25,7 +25,6 @@ SerialPassthrough sketch
 #include "ELMduino.h"
 #include "Arduino.h"
 #include "ui.hpp"
-#include "sd.hpp"
 
 
 #define SerialELM Serial2
@@ -51,7 +50,6 @@ float lastLtft2 = 0;
 void kphTask() {
     auto kph = elmduino.kph();
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        Serial.println("kph" + kph);
         ui_setSpeedValue(kph);
     }
 }
@@ -59,8 +57,6 @@ void kphTask() {
 void rpmTask() {
     auto rpm = elmduino.rpm();
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        Serial.print("rpm: ");
-        Serial.println(rpm);
         ui_updateFuelTrimChart(rpm / 100, -10);
     }
 }
@@ -104,9 +100,9 @@ void dtcTask() {
     }
 }
 
-static OBDTask tasks[7] = {
+static OBDTask tasks[6] = {
     OBDTask{"kph", kphTask, 50, 0},
-    OBDTask{"rpm", rpmTask, 50, 0},
+    // OBDTask{"rpm", rpmTask, 50, 0},
     OBDTask{"stft1", stft1Task, 50, 0},
     OBDTask{"stft2", stft2Task, 50, 0},
     OBDTask{"ltft1", ltft1Task, 50, 0},
@@ -185,29 +181,26 @@ void executeOrPickNextTask() {
                 }
             }
         }
-        Serial.println(String("Starting task ") + currentTask->name);
         ui_updateWarningLabel((String("TASK: ") + currentTask->name).c_str());
     }
 }
 
-
-void connectOBD() {
+bool connectOBD() {
     Serial.println("Connecting");
-    if (!elmduino.begin(SerialELM, true)) {
+    if (!elmduino.begin(SerialELM, true, 5000)) {
         Serial.println("Couldn't connect to OBD scanner");
-        return;
-    }
+        return false;
+    };
     Serial.println("Connected to OBD scanner");
+    return true;
 }
 
 void setup() {
     delay(500);
     Serial.begin(115200);
-    SerialELM.begin(38400, SERIAL_8N1, 45, 39);
+    SerialELM.begin(38400, SERIAL_8N1, 11, 10);
     ui_setup();
-    sd_setup();
 }
-
 
 bool connected = false;
 
@@ -215,19 +208,12 @@ void loop() {
     ui_loop();
     if (!connected) {
         ui_updateWarningLabel("Connecting...");
-        Serial.print("MOSI: ");
-        Serial.println(MOSI);
-        Serial.print("MISO: ");
-        Serial.println(MISO);
-        Serial.print("SCK: ");
-        Serial.println(SCK);
-        Serial.print("SS: ");
-        Serial.println(SS);
         ui_loop();
-        connectOBD();
-        ui_updateWarningLabel("");
+        connected = connectOBD();
+        if (connected) {
+            ui_updateWarningLabel("");
+        }
         delay(200);
-        connected = true;
         return;
     }
 
