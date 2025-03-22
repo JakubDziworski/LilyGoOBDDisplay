@@ -181,7 +181,7 @@ void executeOrPickNextTask() {
                 }
             }
         }
-        ui_updateWarningLabel((String("TASK: ") + currentTask->name).c_str());
+        // ui_updateWarningLabel((String("TASK: ") + currentTask->name).c_str());
     }
 }
 

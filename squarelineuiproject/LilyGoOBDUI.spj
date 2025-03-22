@@ -361,7 +361,6 @@
               },
               {
                 "nid": 1110,
-                "flags": 1048576,
                 "strtype": "CHART/Primary_Y_Axis",
                 "InheritedType": 1
               },
@@ -406,7 +405,6 @@
               },
               {
                 "nid": 1170,
-                "flags": 1048576,
                 "strtype": "CHART/Secondary_Y_Axis",
                 "InheritedType": 1
               },
@@ -451,7 +449,6 @@
               },
               {
                 "nid": 1230,
-                "flags": 1048576,
                 "strtype": "CHART/Chart_data",
                 "InheritedType": 1
               },
@@ -535,7 +532,21 @@
               },
               {
                 "part": "lv.PART.INDICATOR",
-                "childs": [],
+                "childs": [
+                  {
+                    "nid": 10000,
+                    "strtype": "_style/StyleState",
+                    "strval": "DEFAULT",
+                    "childs": [
+                      {
+                        "nid": 11310,
+                        "strtype": "_style/Size_size",
+                        "InheritedType": 6
+                      }
+                    ],
+                    "InheritedType": 1
+                  }
+                ],
                 "nid": 1280,
                 "strtype": "CHART/Style_indicator",
                 "strval": "lv.PART.INDICATOR, Rectangle, Pad, Size",

@@ -35,7 +35,13 @@ void ui_updateFuelTrimChart(int bank1Value, int bank2Value)
 
 inline void updateFuelTrimLabel(lv_obj_t* label, const char* trimName, float trim)
 {
-    lv_label_set_text(label, (String(trimName) + " " + trim + "%").c_str());
+    if (abs(trim) > 10.0f) {
+        lv_obj_set_style_text_color(label, lv_color_hex(0xFAC500), LV_PART_MAIN | LV_STATE_DEFAULT);
+    } else {
+        lv_obj_set_style_text_color(ui_ltft1Label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    }
+    int trim_int = trim;
+    lv_label_set_text(label, (String(trimName) + " " + trim_int).c_str());
 }
 
 void ui_updateStft1Label(float value)
@@ -122,6 +128,8 @@ void ui_setup()
     lv_obj_set_style_line_width(ui_fuelTrimChart, 0, LV_PART_TICKS | LV_STATE_DEFAULT);
     lv_obj_set_style_text_color(ui_fuelTrimChart, lv_color_hex(0xFFFFFF), LV_PART_TICKS | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_fuelTrimChart, 255, LV_PART_TICKS | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_size(ui_fuelTrimChart, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
     ui_speedArc = lv_arc_create(lv_scr_act());
     lv_obj_set_width(ui_speedArc, 220);
