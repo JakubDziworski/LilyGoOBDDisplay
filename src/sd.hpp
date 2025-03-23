@@ -174,9 +174,6 @@ void testFileIO(fs::FS &fs, const char * path){
 }
 
 void sd_setup(){
-    Serial.begin(115200);
-    Serial.println("Starting");
-     Serial.begin(115200);
   Serial.print("MOSI: ");
   Serial.println(MOSI);
   Serial.print("MISO: ");
@@ -230,7 +227,7 @@ Serial.println(strftime_buf);
     uint64_t cardSize = SD.cardSize() / (1024 * 1024);
     Serial.printf("SD Card Size: %lluMB\n", cardSize);
 
-//    listDir(SD, "/", 0);
+    listDir(SD, "/", 0);
 //    createDir(SD, "/mydir");
 //    listDir(SD, "/", 0);
 //    removeDir(SD, "/mydir");
@@ -241,7 +238,7 @@ Serial.println(strftime_buf);
 //    deleteFile(SD, "/foo.txt");
 //    renameFile(SD, "/hello.txt", "/foo.txt");
 //    readFile(SD, "/foo.txt");
-    testFileIO(SD, "/test.txt");
+    // testFileIO(SD, "/test.txt");
     Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
     Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
 }

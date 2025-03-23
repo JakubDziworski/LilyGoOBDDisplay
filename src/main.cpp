@@ -24,6 +24,7 @@ SerialPassthrough sketch
 
 #include "ELMduino.h"
 #include "Arduino.h"
+#include "sd.hpp"
 #include "ui.hpp"
 
 
@@ -198,8 +199,9 @@ bool connectOBD() {
 void setup() {
     delay(500);
     Serial.begin(115200);
-    SerialELM.begin(38400, SERIAL_8N1, 11, 10);
+    SerialELM.begin(38400, SERIAL_8N1, 15, 14);
     ui_setup();
+    sd_setup();
 }
 
 bool connected = false;
