@@ -26,7 +26,10 @@ SerialPassthrough sketch
 #include "Arduino.h"
 #include "sd.hpp"
 #include "ui.hpp"
+#include "queue.hpp"
 
+
+#define DEBUG_WITH_SIMULATED_CAR false
 
 #define SerialELM Serial2
 ELM327 elmduino;
@@ -39,6 +42,7 @@ struct OBDTask {
 
     unsigned long interval;
     unsigned long lastRun;
+    bool saveToSDCard;
 };
 
 OBDTask *currentTask = nullptr;
@@ -52,13 +56,35 @@ void kphTask() {
     auto kph = elmduino.kph();
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
         ui_setSpeedValue(kph);
+        queue_addToCSVQueue("kph", kph);
     }
 }
 
 void rpmTask() {
     auto rpm = elmduino.rpm();
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
-        ui_updateFuelTrimChart(rpm / 100, -10);
+        queue_addToCSVQueue("rpm", rpm);
+    }
+}
+
+void ectTask() {
+    auto ect = elmduino.engineCoolantTemp();
+    if (elmduino.nb_rx_state == ELM_SUCCESS) {
+        queue_addToCSVQueue("ect", ect);
+    }
+}
+
+void absLoadTask() {
+    auto absLoad = elmduino.absLoad();
+    if (elmduino.nb_rx_state == ELM_SUCCESS) {
+        queue_addToCSVQueue("absload", absLoad);
+    }
+}
+
+void engineLoadTask() {
+    auto engineLoad = elmduino.engineLoad();
+    if (elmduino.nb_rx_state == ELM_SUCCESS) {
+        queue_addToCSVQueue("engineload", engineLoad);
     }
 }
 
@@ -66,6 +92,7 @@ void stft1Task() {
     lastStft1 = elmduino.shortTermFuelTrimBank_1();
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
         ui_updateStft1Label(lastStft1);
+        queue_addToCSVQueue("stft1", lastStft1);
     }
 }
 
@@ -73,6 +100,7 @@ void stft2Task() {
     lastStft2 = elmduino.shortTermFuelTrimBank_2();
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
         ui_updateStft2Label(lastStft2);
+        queue_addToCSVQueue("stft2", lastStft2);
     }
 }
 
@@ -80,6 +108,7 @@ void ltft1Task() {
     lastLtft1 = elmduino.longTermFuelTrimBank_1();
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
         ui_updateLtft1Label(lastLtft1);
+        queue_addToCSVQueue("ltft1", lastLtft1);
     }
 }
 
@@ -87,6 +116,7 @@ void ltft2Task() {
     lastLtft2 = elmduino.longTermFuelTrimBank_2();
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
         ui_updateLtft2Label(lastLtft2);
+        queue_addToCSVQueue("ltft2", lastLtft2);
     }
 }
 
@@ -101,15 +131,55 @@ void dtcTask() {
     }
 }
 
-static OBDTask tasks[6] = {
-    OBDTask{"kph", kphTask, 50, 0},
-    // OBDTask{"rpm", rpmTask, 50, 0},
+void testTask() {
+    auto kph = random(0, 100);
+    lastStft1 = random(-10,10);
+    lastStft2 = random(-10,10);
+    lastLtft1 = random(-10,10);
+    lastLtft2 = random(-10,10);
+    auto dtc = random(0, 200);
+
+    ui_setSpeedValue(kph);
+    ui_updateWarningLabel("DTC: P"+ dtc);
+    ui_updateStft1Label(lastStft1);
+    ui_updateStft2Label(lastStft2);
+    ui_updateLtft1Label(lastLtft1);
+    ui_updateLtft2Label(lastLtft2);
+    ui_updateFuelTrimChart(lastStft1+lastLtft1, lastStft2 + lastLtft2);
+    queue_addToCSVQueue("stft1", lastStft1);
+    queue_addToCSVQueue("stft2", lastStft2);
+    queue_addToCSVQueue("ltft1", lastLtft1);
+    queue_addToCSVQueue("ltft2", lastLtft2);
+}
+
+#ifdef DEBUG_WITH_SIMULATED_CAR
+static OBDTask tasks[1] = {
+    OBDTask{"test", testTask, 50, 0},
+    // OBDTask{"stft1", stft1Task, 50, 0},
+    // OBDTask{"stft2", stft2Task, 50, 0},
+    // OBDTask{"ltft1", ltft1Task, 50, 0},
+    // OBDTask{"ltft2", ltft2Task, 50, 0},
+    // OBDTask{"kph", kphTask, 100, 0},
+    // OBDTask{"rpm", rpmTask, 100, 0},
+    // OBDTask{"ect", ectTask, 100, 0},
+    // OBDTask{"engineload", engineLoadTask, 100, 0},
+    // OBDTask{"absLoadTask", absLoadTask, 100, 0},
+    // OBDTask{"dtc", dtcTask, 5000, 0},
+};
+#else
+static OBDTask tasks[10] = {
     OBDTask{"stft1", stft1Task, 50, 0},
     OBDTask{"stft2", stft2Task, 50, 0},
     OBDTask{"ltft1", ltft1Task, 50, 0},
     OBDTask{"ltft2", ltft2Task, 50, 0},
+    OBDTask{"kph", kphTask, 100, 0},
+    OBDTask{"rpm", rpmTask, 100, 0},
+    OBDTask{"ect", ectTask, 100, 0},
+    OBDTask{"engineload", engineLoadTask, 100, 0},
+    OBDTask{"absLoadTask", absLoadTask, 100, 0},
     OBDTask{"dtc", dtcTask, 5000, 0},
 };
+#endif
 
 void finalizeTaskIfDone() {
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
@@ -202,13 +272,14 @@ void setup() {
     SerialELM.begin(38400, SERIAL_8N1, 15, 14);
     ui_setup();
     sd_setup();
+    queue_setup();
 }
 
 bool connected = false;
 
 void loop() {
     ui_loop();
-    if (!connected) {
+    if (!connected && !DEBUG_WITH_SIMULATED_CAR) {
         ui_updateWarningLabel("Connecting...");
         ui_loop();
         connected = connectOBD();
