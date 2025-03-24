@@ -152,7 +152,7 @@ void testTask() {
     queue_addToCSVQueue("ltft2", lastLtft2);
 }
 
-#ifdef DEBUG_WITH_SIMULATED_CAR
+#if DEBUG_WITH_SIMULATED_CAR
 static OBDTask tasks[1] = {
     OBDTask{"test", testTask, 50, 0},
     // OBDTask{"stft1", stft1Task, 50, 0},
@@ -258,7 +258,7 @@ void executeOrPickNextTask() {
 
 bool connectOBD() {
     Serial.println("Connecting");
-    if (!elmduino.begin(SerialELM, true, 5000)) {
+    if (!elmduino.begin(SerialELM, false, 5000)) {
         Serial.println("Couldn't connect to OBD scanner");
         return false;
     };
