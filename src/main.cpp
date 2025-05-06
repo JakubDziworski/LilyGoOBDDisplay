@@ -124,10 +124,12 @@ void dtcTask() {
     elmduino.currentDTCCodes(false);
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
         ui_updateWarningLabel("");
-        for (const auto code: elmduino.DTC_Response.codes) {
+        for (int i = 0; i< elmduino.DTC_Response.codesFound; i++) {
+            auto code = elmduino.DTC_Response.codes[i];
             ui_updateWarningLabel(code, true);
+            ui_updateWarningLabel(" ", true);
         }
-        ui_updateWarningLabel("DTCS: ", true);
+        ui_updateWarningLabel("DTCS:", true);
     }
 }
 

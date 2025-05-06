@@ -35,10 +35,10 @@ void ui_updateFuelTrimChart(int bank1Value, int bank2Value)
 
 inline void updateFuelTrimLabel(lv_obj_t* label, const char* trimName, float trim)
 {
-    if (abs(trim) > 10.0f) {
+    if (trim > 10.0f || trim < -10.0f) {
         lv_obj_set_style_text_color(label, lv_color_hex(0xFAC500), LV_PART_MAIN | LV_STATE_DEFAULT);
     } else {
-        lv_obj_set_style_text_color(ui_ltft1Label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     }
     int trim_int = trim;
     lv_label_set_text(label, (String(trimName) + " " + trim_int).c_str());
