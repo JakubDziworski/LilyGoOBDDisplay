@@ -77,6 +77,7 @@ void ui_setup()
             delay(1000);
         }
     }
+    amoled.setRotation(2);
 
     beginLvglHelper(amoled);
 

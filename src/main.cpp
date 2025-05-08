@@ -53,7 +53,7 @@ float lastLtft1 = 0;
 float lastLtft2 = 0;
 
 void kphTask() {
-    auto kph = elmduino.kph();
+    auto kph = elmduino.kph() + 3;
     if (elmduino.nb_rx_state == ELM_SUCCESS) {
         ui_setSpeedValue(kph);
         queue_addToCSVQueue("kph", kph);
